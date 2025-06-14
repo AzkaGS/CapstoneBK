@@ -10,8 +10,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSe
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.metrics import (confusion_matrix, accuracy_score, precision_score,
-                             recall_score, f1_score, ConfusionMatrixDisplay)
+from sklearn.metrics import (confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, ConfusionMatrixDisplay)
 
 # 1. Load dataset
 df = pd.read_csv('ObesityDataSet.csv')
