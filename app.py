@@ -50,8 +50,8 @@ def load_data():
         'SCC': np.random.choice(['yes', 'no'], n_samples),
         'FAF': np.random.randint(0, 4, n_samples),
         'TUE': np.random.randint(0, 3, n_samples),
-        'CALC': np.random.choice(['no', 'Sometimes', 'Frequently', 'Always'], n_samples),
-        'MTRANS': np.random.choice(['Automobile', 'Bike', 'Motorbike', 'Public_Transportation', 'Walking'], n_samples),
+        'CALC': np.random.choice(['tidak', 'Kadang-kadang', 'Sering', 'Selalu'], n_samples),
+        'MTRANS': np.random.choice(['Mobil', 'Sepeda', 'Sepeda Motor', 'Transportasi umum', 'Jalan'], n_samples),
         'NObeyesdad': np.random.choice(['Insufficient_Weight', 'Normal_Weight', 'Overweight_Level_I', 
                                       'Overweight_Level_II', 'Obesity_Type_I', 'Obesity_Type_II', 
                                       'Obesity_Type_III'], n_samples)
