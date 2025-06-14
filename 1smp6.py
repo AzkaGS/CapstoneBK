@@ -9,7 +9,7 @@ from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 from sklearn.metrics import (confusion_matrix, accuracy_score, precision_score,
                              recall_score, f1_score, ConfusionMatrixDisplay)
 
@@ -73,9 +73,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 # BASELINE MODEL
 # ------------------------------------------------------------------
 baseline_models = {
-    'Logistic Regression': LogisticRegression(max_iter=1000),
+    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
     'Random Forest': RandomForestClassifier(random_state=42),
-    'KNN': KNeighborsClassifier()
+    'SVM': SVC(random_state=42)
 }
 
 def evaluate_models(models_dict, X_tr, X_te, y_tr, y_te, label='Baseline'):
@@ -83,6 +83,7 @@ def evaluate_models(models_dict, X_tr, X_te, y_tr, y_te, label='Baseline'):
     results = {'Model': [], 'Accuracy': [], 'Precision': [], 'Recall': [], 'F1 Score': []}
 
     for name, mdl in models_dict.items():
+        print(f'Training {name}...')
         mdl.fit(X_tr, y_tr)
         y_pred = mdl.predict(X_te)
 
@@ -102,27 +103,28 @@ def evaluate_models(models_dict, X_tr, X_te, y_tr, y_te, label='Baseline'):
 
 print('\n===== EVALUASI BASELINE =====')
 baseline_metrics = evaluate_models(baseline_models, X_train, X_test, y_train, y_test)
+print(baseline_metrics)
 
 # ------------------------------------------------------------------
 # HYPERPARAMETER TUNING
 # ------------------------------------------------------------------
 param_grids = {
     'Logistic Regression': {
-        'C': np.logspace(-3, 3, 10),
+        'C': np.logspace(-3, 3, 7),
         'penalty': ['l2'],
-        'solver': ['lbfgs']
+        'solver': ['lbfgs', 'liblinear']
     },
     'Random Forest': {
-        'n_estimators': [100, 200, 400, 600],
+        'n_estimators': [100, 200, 300],
         'max_depth': [None, 10, 20, 30],
         'min_samples_split': [2, 5, 10],
         'min_samples_leaf': [1, 2, 4],
         'bootstrap': [True, False]
     },
-    'KNN': {
-        'n_neighbors': list(range(3, 21, 2)),
-        'weights': ['uniform', 'distance'],
-        'metric': ['euclidean', 'manhattan', 'minkowski']
+    'SVM': {
+        'C': [0.1, 1, 10, 100],
+        'kernel': ['rbf', 'linear', 'poly'],
+        'gamma': ['scale', 'auto', 0.001, 0.01, 0.1, 1]
     }
 }
 
@@ -130,65 +132,143 @@ tuned_models = {}
 best_params = {}
 
 for name, mdl in baseline_models.items():
+    print(f'\nTuning hyperparameters untuk {name}...')
+    
     if name == 'Random Forest':
+        # Gunakan RandomizedSearchCV untuk Random Forest karena space parameter yang besar
         search = RandomizedSearchCV(
             estimator=mdl,
             param_distributions=param_grids[name],
-            n_iter=30,
-            cv=5,
+            n_iter=20,
+            cv=3,
             scoring='f1_weighted',
             n_jobs=-1,
-            random_state=42
+            random_state=42,
+            verbose=1
+        )
+    elif name == 'SVM':
+        # Gunakan RandomizedSearchCV untuk SVM karena kombinasi parameter yang banyak
+        search = RandomizedSearchCV(
+            estimator=mdl,
+            param_distributions=param_grids[name],
+            n_iter=15,
+            cv=3,
+            scoring='f1_weighted',
+            n_jobs=-1,
+            random_state=42,
+            verbose=1
         )
     else:
+        # GridSearchCV untuk Logistic Regression
         search = GridSearchCV(
             estimator=mdl,
             param_grid=param_grids[name],
-            cv=5,
+            cv=3,
             scoring='f1_weighted',
-            n_jobs=-1
+            n_jobs=-1,
+            verbose=1
         )
+    
     search.fit(X_train, y_train)
     tuned_models[name] = search.best_estimator_
     best_params[name] = search.best_params_
-    print(f'\nBest params {name}: {search.best_params_}')
+    print(f'Best params {name}: {search.best_params_}')
+    print(f'Best CV score {name}: {search.best_score_:.4f}')
 
 # ------------------------------------------------------------------
 # EVALUASI MODEL TUNED
 # ------------------------------------------------------------------
 print('\n===== EVALUASI MODEL SETELAH TUNING =====')
 tuned_metrics = evaluate_models(tuned_models, X_train, X_test, y_train, y_test, label='Tuned')
+print(tuned_metrics)
 
 # ------------------------------------------------------------------
 # VISUALISASI PERBANDINGAN
 # ------------------------------------------------------------------
+# Perbandingan Baseline vs Tuned
 baseline_metrics['Tipe'] = 'Baseline'
 tuned_metrics['Tipe'] = 'Tuned'
 combined_metrics = pd.concat([baseline_metrics, tuned_metrics], ignore_index=True)
 
+plt.figure(figsize=(15, 8))
+metrics_to_plot = ['Accuracy', 'Precision', 'Recall', 'F1 Score']
+
+for i, metric in enumerate(metrics_to_plot, 1):
+    plt.subplot(2, 2, i)
+    metric_data = combined_metrics[['Model', 'Tipe', metric]]
+    pivot_data = metric_data.pivot(index='Model', columns='Tipe', values=metric)
+    pivot_data.plot(kind='bar', ax=plt.gca(), width=0.8)
+    plt.title(f'Perbandingan {metric}')
+    plt.ylabel(metric)
+    plt.xticks(rotation=45)
+    plt.legend(title='Tipe Model')
+    plt.grid(axis='y', alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Visualisasi performa per model
 plt.figure(figsize=(12, 6))
-metrics_melted = combined_metrics.melt(
-    id_vars=['Model', 'Tipe'], var_name='Metric', value_name='Score'
-)
-sns.barplot(x='Model', y='Score', hue='Metric', data=metrics_melted)
-plt.title('Perbandingan Performa Model – Baseline vs Tuned')
+models_order = ['Logistic Regression', 'Random Forest', 'SVM']
+colors = ['skyblue', 'lightcoral', 'lightgreen']
+
+x = np.arange(len(models_order))
+width = 0.35
+
+baseline_f1 = [baseline_metrics[baseline_metrics['Model'] == model]['F1 Score'].iloc[0] for model in models_order]
+tuned_f1 = [tuned_metrics[tuned_metrics['Model'] == model]['F1 Score'].iloc[0] for model in models_order]
+
+plt.bar(x - width/2, baseline_f1, width, label='Baseline', color=colors, alpha=0.7)
+plt.bar(x + width/2, tuned_f1, width, label='Tuned', color=colors, alpha=1.0)
+
+plt.xlabel('Model')
+plt.ylabel('F1 Score')
+plt.title('Perbandingan F1 Score: Baseline vs Tuned')
+plt.xticks(x, models_order)
+plt.legend()
+plt.grid(axis='y', alpha=0.3)
 plt.ylim(0, 1.05)
-plt.legend(loc='lower right')
+
+# Tambahkan nilai di atas bar
+for i, (baseline, tuned) in enumerate(zip(baseline_f1, tuned_f1)):
+    plt.text(i - width/2, baseline + 0.01, f'{baseline:.3f}', ha='center', va='bottom', fontsize=9)
+    plt.text(i + width/2, tuned + 0.01, f'{tuned:.3f}', ha='center', va='bottom', fontsize=9)
+
+plt.tight_layout()
 plt.show()
 
 # ------------------------------------------------------------------
 # KESIMPULAN
 # ------------------------------------------------------------------
 print('\n===== KESIMPULAN =====')
+print('\nBaseline Performance:')
+print(baseline_metrics.round(4))
+print('\nTuned Performance:')
+print(tuned_metrics.round(4))
+
 best_baseline = baseline_metrics.loc[baseline_metrics['F1 Score'].idxmax()]
 best_tuned = tuned_metrics.loc[tuned_metrics['F1 Score'].idxmax()]
 improvement = best_tuned['F1 Score'] - best_baseline['F1 Score']
 
-print(f'Performa terbaik baseline: {best_baseline["Model"]} (F1 = {best_baseline["F1 Score"]:.4f})')
+print(f'\nPerforma terbaik baseline: {best_baseline["Model"]} (F1 = {best_baseline["F1 Score"]:.4f})')
 print(f'Performa terbaik setelah tuning: {best_tuned["Model"]} (F1 = {best_tuned["F1 Score"]:.4f})')
 print(f'Peningkatan F1 Score: {improvement:.4f}')
 
+# Analisis per model
+print('\nPerbandingan peningkatan per model:')
+for model in models_order:
+    baseline_score = baseline_metrics[baseline_metrics['Model'] == model]['F1 Score'].iloc[0]
+    tuned_score = tuned_metrics[tuned_metrics['Model'] == model]['F1 Score'].iloc[0]
+    improvement_per_model = tuned_score - baseline_score
+    print(f'{model}: {baseline_score:.4f} → {tuned_score:.4f} (Δ: {improvement_per_model:+.4f})')
+
 if improvement > 0:
-    print('🔸 Hyperparameter tuning berhasil meningkatkan kinerja model.')
+    print('\n🔸 Hyperparameter tuning berhasil meningkatkan kinerja model.')
 else:
-    print('🔸 Hyperparameter tuning tidak memberikan peningkatan signifikan; pertimbangkan teknik lain (mis. feature engineering).')
+    print('\n🔸 Hyperparameter tuning tidak memberikan peningkatan signifikan; pertimbangkan teknik lain (mis. feature engineering).')
+
+print('\n===== BEST HYPERPARAMETERS =====')
+for model_name, params in best_params.items():
+    print(f'\n{model_name}:')
+    for param, value in params.items():
+        print(f'  {param}: {value}')
