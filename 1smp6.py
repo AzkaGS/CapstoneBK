@@ -14,7 +14,7 @@ from sklearn.metrics import (confusion_matrix, accuracy_score, precision_score,
                              recall_score, f1_score, ConfusionMatrixDisplay)
 
 # 1. Load dataset
-df = pd.read_csv('C:/bengkod/ObesityDataSet.csv')
+df = pd.read_csv('ObesityDataSet.csv')
 
 # 2. Tangani Missing Values dan Duplikasi
 print('===== Missing Values =====')
