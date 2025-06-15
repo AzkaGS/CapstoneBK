@@ -9,12 +9,11 @@ from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC  # Mengganti KNN dengan SVM
+from sklearn.svm import SVC 
 from sklearn.metrics import (confusion_matrix, accuracy_score, precision_score,
                              recall_score, f1_score, ConfusionMatrixDisplay)
 
 # 1. Load dataset
-# Pastikan path file 'ObesityDataSet.csv' sudah benar
 try:
     df = pd.read_csv('ObesityDataSet.csv')
 except FileNotFoundError:
@@ -89,7 +88,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 baseline_models = {
     'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
     'Random Forest': RandomForestClassifier(random_state=42),
-    'SVM': SVC(random_state=42)  # Menggunakan SVM
+    'SVM': SVC(random_state=42) 
 }
 
 def evaluate_models(models_dict, X_tr, X_te, y_tr, y_te, label='Baseline'):
@@ -135,7 +134,7 @@ param_grids = {
         'min_samples_split': [2, 5],
         'min_samples_leaf': [1, 2],
     },
-    'SVM': {  # Parameter grid untuk SVM
+    'SVM': { 
         'C': [0.1, 1, 10, 100],
         'kernel': ['rbf', 'linear'],
         'gamma': ['scale', 'auto']
